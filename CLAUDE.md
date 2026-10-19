@@ -20,19 +20,22 @@ Windows, PowerShell. Python virtualenv in `.venv/`:
 .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 python src/scraper.py   # scrape once (run from the project root)
+python src/clean.py     # clean: data/raw/books.csv -> data/processed/books_clean.csv
 jupyter lab
 ```
 
 - `requirements.txt` is a full `pip freeze` saved as **UTF-16 LE** (PowerShell's `>` redirect). Grep/diff tools may not read it as text. When regenerating it, use `pip freeze | Out-File -Encoding utf8 requirements.txt`.
-- pandas, scikit-learn and Pillow are not installed yet. PLAN.md needs them for later phases, so add them to the venv and to requirements.txt when that work starts.
+- pandas is installed. scikit-learn and Pillow are not installed yet. PLAN.md needs them for later phases, so add them to the venv and to requirements.txt when that work starts.
 - There are no tests, linter or build step.
 
 ## Structure and conventions
 
 - Scraping lives in `src/scraper.py`, which writes `data/raw/books.csv` (columns: title, category, description, image_url, image_path) and `data/raw/images/` (covers named by the book's URL slug; `image_path` is relative to `data/raw/`). Run code goes under `if __name__ == "__main__":` so functions can be imported into notebooks for testing.
-- Analysis happens in notebooks under `notebooks/`: `02_cleaning_eda` (reads `data/raw/`, writes `data/processed/books_clean.csv`) and `03_features_models` (reads `data/processed/`). `01_scrapeTest.ipynb` is a scratchpad for trying out selectors, and `demo.ipynb` holds BeautifulSoup practice.
+- Cleaning lives in `src/clean.py`, which reads `data/raw/books.csv`, overwrites `description` with the cleaned text (the raw text stays in `data/raw/books.csv`) and writes `data/processed/books_clean.csv`. It has no built-in checks (the user removed them for simplicity). `image_path` in that file is still relative to `data/raw/`. The teaser-removal constants (`MATCH_LENGTH = 20`, cut only at position 350–400) were tested against the data. If they change or the data is re-scraped, re-verify the output: no `...more`, no empty descriptions, no `\xa0`/`\xad`/double spaces, same result when cleaned twice, and only *Crazy Rich Asians* still repeating its opening.
+- Pattern for every step: work it out in a notebook, then move the final code into a script in `src/`. Notebooks keep the investigation and import functions from `src/` (`sys.path.append("../src")`) instead of copying them.
+- Analysis happens in notebooks under `notebooks/`: `02_cleaning_eda` (cleaning investigation, plus exploration reading `data/processed/`) and `03_features_models` (reads `data/processed/`). `01_scrapeTest.ipynb` is a scratchpad for trying out selectors, and `demo.ipynb` holds BeautifulSoup practice.
 - Scrape once. Notebooks load the CSV and never call the scraper or re-hit the site. When scraping, add a `time.sleep` between requests, check status codes, and skip images that already exist.
-- Never overwrite `data/raw/` from the notebooks. Cleaned output goes to `data/processed/`.
+- Never overwrite `data/raw/` from the notebooks or `clean.py`. Cleaned output goes to `data/processed/`.
 
 ## Modelling constraints
 

@@ -71,7 +71,9 @@ Finally the code was moved from the notebook into the script `src/scraper.py`.
 ### Observations for the next steps
 
 - 171 of 175 descriptions end with `...more`, which has to be removed when cleaning the text.
-- **168 of 175 descriptions contain their opening text twice.** The site puts a short teaser (the first ~375 characters, cut off mid-word) in front of the full description. So each description is *teaser + full text + "...more"*. The 7 without a teaser are short descriptions where the teaser would be the whole text. This inflates word counts and counts the first ~60 words of each description twice, so it has to be removed when cleaning.
+- **171 of 175 descriptions contain their opening text twice.** The site puts a short teaser (the first ~375 characters, cut off mid-word) in front of the full description. So each description is *teaser + full text + "...more"*. The 4 without a teaser are short descriptions (30–364 characters) where the teaser would be the whole text. This inflates word counts and counts the first ~60 words of each description twice, so it has to be removed when cleaning.
+  - In 3 of the 171, the teaser is not an exact copy: the full text contains non-breaking spaces (`\xa0`) that are missing from the teaser (e.g. *Becoming Wise*, *Trespassing Across America*, *The Name of God is Mercy*). Matching on the first 40 characters misses these; matching on the first 20 finds all 171, always at position 372–377 in the text.
+- **Special whitespace characters:** 34 descriptions contain non-breaking spaces (`\xa0`, 247 in total) and a few contain soft hyphens (`\xad`, 3 in total, invisible characters inside words). Most non-breaking spaces act as normal word separators (41 sit directly between two letters), so they should be replaced by a normal space, not deleted, otherwise words get glued together. Soft hyphens should be deleted, otherwise word tokenizers split the word in two (`some\xadthing` → `some`, `thing`). Normalizing these alone does not fix the teaser matching: the teaser is missing the space completely (`wit,Trespassing` vs `wit,\xa0Trespassing`), so with a 40-character match 2 teasers are still missed.
 - At least one book is not in English: *Soumission* (Fiction) has a French description.
 - After removing the teaser and `...more`, descriptions are of similar length in both classes (median 173 words for Fiction, 201.5 for Nonfiction; before cleaning it was 237 vs 265), so description length alone probably won't separate the classes well.
 - Garbled characters (`�`) showed up when printing descriptions in the notebook. Checking the raw data showed this is only a display problem in the notebook output. The data itself is decoded correctly.
@@ -86,7 +88,36 @@ Finally the code was moved from the notebook into the script `src/scraper.py`.
 
 ## 2. Cleaning and exploration
 
-*Status: not started*
+*Status: in progress (2026-10-19). Description cleaning done and saved; non-English books and exploration not started.*
+
+The cleaning was worked out in [notebooks/02_cleaning_eda.ipynb](notebooks/02_cleaning_eda.ipynb) using pandas, then moved into the script [src/clean.py](src/clean.py), run with `python src/clean.py`. It reads `data/raw/books.csv`, replaces the `description` column with the cleaned text, and saves `data/processed/books_clean.csv` (175 rows, same 5 columns as the raw file). The script has no built-in checks, to keep it simple: the cleaning was verified once on the full dataset (results below), and since the raw data doesn't change, that verification still holds. It only needs repeating if the data is re-scraped. Like the scraper, the cleaning is a fixed step from raw to processed data, so a script keeps one version of the code and can't break from cells run twice or out of order. The notebook keeps the investigation behind each decision.
+
+### Inspection
+
+- 175 rows, 5 columns, no missing values in any column. Class counts confirmed: 110 Nonfiction, 65 Fiction.
+- Reading the first descriptions showed the two problems from section 1: a repeated teaser at the start and `...more` at the end.
+
+### Description cleaning: `clean_description()`
+
+Steps, in this order:
+
+1. Remove `...more` from the end, then strip surrounding whitespace.
+2. Find the teaser: search for the first 20 characters of the description again, starting from position 1.
+3. Only cut if that repeat is found at position 350–400; keep the text from there.
+4. Remove soft hyphens (`\xad`).
+5. Collapse all whitespace (non-breaking spaces, double spaces) into single normal spaces with `" ".join(text.split())`.
+
+| Decision | Reason |
+|----------|--------|
+| Match on the first **20** characters | Tested lengths: 40 characters missed 3 teasers, because the full text contains non-breaking spaces that the teaser lacks. 15–25 found all 171. 10 caused a false match at position 304, in the middle of a teaser. 20 sits in the middle of the safe range. |
+| Only cut when the repeat is at position **350–400** | Every real teaser ends at position 372–377. Without this check, cleaning *Crazy Rich Asians* twice cut it from 1423 to 265 characters, because its title genuinely appears again later in the text. The range check makes the function safe to run twice and guards against false matches. |
+| Remove the teaser **before** cleaning whitespace | The tested positions were measured on the raw text; cleaning whitespace first would shift them. |
+| Replace non-breaking spaces with a normal space, delete soft hyphens | See the special whitespace characters in section 1. |
+| Overwrite `description` with the cleaned text instead of adding a second column | The raw text is already preserved in `data/raw/books.csv`, so a second column would only duplicate it. With a single `description` column, later steps can't accidentally use the uncleaned text. For before/after comparisons, load both files. |
+
+**Verified on all 175 descriptions:** none ends with `...more`, none is empty, all 171 teasers removed (only *Crazy Rich Asians* still repeats its opening, which is real text), no non-breaking spaces, soft hyphens, double spaces or surrounding whitespace left, and running the function twice gives the same result.
+
+> **For the report:** the teaser is a good data-quality example. It was only found by reading the raw data, and a naive fix (40-character match) silently missed 3 cases. Explain the 20-character choice with the tested range, and the two independent checks (the text matches *and* it is at the expected position).
 
 ---
 

@@ -41,15 +41,23 @@ The prototype in `01_scrapeTest.ipynb` worked, but it printed everything instead
 
 ## Step 2: Clean and explore the data (Day 2)
 
-Start a new notebook for this, e.g. `02_cleaning_eda.ipynb`. It reads `data/raw/books.csv` and saves the cleaned result to `data/processed/books_clean.csv`, so the original scrape is never overwritten.
+The cleaning was worked out in `02_cleaning_eda.ipynb` and then moved into the script `src/clean.py`, the same way as the scraper. Run it from the project root:
+
+```powershell
+python src/clean.py
+```
+
+It reads `data/raw/books.csv`, cleans the `description` column and saves `data/processed/books_clean.csv`. The raw scrape is never overwritten. The notebook keeps the investigation (how the problems were found and the tests behind each decision) and the exploration below, which reads `data/processed/books_clean.csv`.
 
 ### Cleaning
 
 - [x] **Missing descriptions:** checked, every book has one. Nothing to drop. Mention this in the report.
-- [ ] **Clean the text:**
-  - Remove the `...more` at the end (171 of 175 descriptions).
-  - Remove the repeated teaser at the start (168 of 175): the first ~375 characters appear twice. Find where the opening reappears and keep only the text from there.
-  - Some books (e.g. *Soumission*) are not in English. Decide how to handle them.
+- [x] **Clean the text** (`clean_description()` in `src/clean.py`):
+  - Removes the `...more` at the end (171 of 175 descriptions).
+  - Removes the repeated teaser at the start (171 of 175), by matching the first 20 characters and only cutting at position 350–400.
+  - Replaces non-breaking spaces and double spaces with single spaces, and deletes soft hyphens.
+- [ ] **Optional: verification cell in the notebook.** Load `data/processed/books_clean.csv` and print a few counts as visible proof that the cleaning worked: no `...more`, no empty descriptions, no `\xa0`/`\xad`/double spaces, and only *Crazy Rich Asians* still repeating its opening. The expected results are in DOCUMENTATION.md.
+- [ ] **Non-English books:** some books (e.g. *Soumission*) are not in English. Decide how to handle them.
 - [ ] **Check duplicates and image integrity:** already confirmed: no duplicate titles, and every row has an `image_path` pointing to an existing file. Still to do: confirm that every image actually opens (e.g. with Pillow).
 
 ### Exploration
@@ -152,10 +160,11 @@ Everything else can go in tables, which don't count as images.
 
 ```
 src/
-└── scraper.py                # run once: writes data/raw/
+├── scraper.py                # run once: writes data/raw/
+└── clean.py                  # reads data/raw/, writes data/processed/
 notebooks/
 ├── 01_scrapeTest.ipynb       # scratchpad for trying out selectors
-├── 02_cleaning_eda.ipynb     # reads data/raw/, writes data/processed/
+├── 02_cleaning_eda.ipynb     # cleaning investigation + exploration (reads data/processed/)
 └── 03_features_models.ipynb  # reads data/processed/
 data/
 ├── raw/
