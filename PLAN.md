@@ -1,0 +1,169 @@
+# Project Plan: Fiction vs Nonfiction Classifier
+
+| Day | Step |
+|-----|------|
+| 1 | [Finish the scraper](#step-1-finish-the-scraper-day-1) |
+| 2 | [Clean and explore the data](#step-2-clean-and-explore-the-data-day-2) |
+| 2–3 | [Feature engineering](#step-3-feature-engineering-days-23) |
+| 3–4 | [Model training](#step-4-model-training-days-34) |
+| 4 | [Evaluation](#step-5-evaluation-day-4) |
+| 5–6 | [Write the report](#step-6-write-the-report-days-56) |
+| 7 | [Buffer](#day-7-buffer) |
+
+---
+
+## Step 1: Finish the scraper (Day 1)
+
+The prototype in `scrapeTest.ipynb` works, but it prints everything instead of storing it. Move it into `src/scraper.py` and keep the notebook as a scratchpad for trying out selectors.
+
+### Changes to make
+
+- [ ] **Save the data.** Build one record per book and write all of them to `data/raw/books.csv` at the end. Each record holds:
+  - title
+  - category label
+  - description
+  - image URL
+  - local image path
+  - the extra fields below
+- [ ] **Download the images.** The brief asks you to scrape the image itself, not just its URL. Save each cover to `data/raw/images/` and name the file by the UPC or the book's URL slug, so it stays paired with its row. Skip any image that already exists, so re-running after a crash doesn't download everything again.
+- [ ] **Scrape more fields from the product page.**
+  - The product table holds UPC, price, availability (stock count) and number of reviews.
+  - The star rating is in a CSS class like `star-rating Three`.
+  - Product type, tax and review count are the same for every book. Mention in the report that you noticed this and dropped them. That covers the brief's *"is anything unnecessary?"* question.
+- [ ] **Make the functions self-contained.** The notebook version relies on `homepage_soup` and `base_url` from an earlier cell. In the script, each function should get what it needs through its arguments, so the file runs from top to bottom on its own.
+- [ ] **Add an entry point.** Put the code that runs the scrape under `if __name__ == "__main__":`. Then you can import functions like `scrape_category` into a notebook to test them without starting a full scrape.
+- [ ] **Be polite to the server.** Add a short `time.sleep` between requests, and check the status codes of the book pages too.
+- [ ] **Scrape once, then work from the CSV.** Run the script once from the project root with `python src/scraper.py`. The analysis notebooks only read `data/raw/books.csv` and never call the scraper.
+
+> **What to expect:** roughly **65 Fiction** and **110 Nonfiction** books, about **175 in total**. That's a small, imbalanced dataset, and it shapes everything after this step. Put the exact counts in the introduction.
+
+---
+
+## Step 2: Clean and explore the data (Day 2)
+
+Start a new notebook for this, e.g. `02_cleaning_eda.ipynb`. It reads `data/raw/books.csv` and saves the cleaned result to `data/processed/books_clean.csv`, so the original scrape is never overwritten.
+
+### Cleaning
+
+- [ ] **Missing descriptions:** a few books have none. Decide whether to drop them or use the title only, and document the choice.
+- [ ] **Clean the text:** descriptions end with `...more`, and some contain odd characters caused by encoding problems.
+- [ ] **Convert types:**
+  - price → `float`
+  - rating → `1–5`
+  - stock count → `int`
+- [ ] **Check duplicates and image integrity:** look for duplicate titles and UPCs, and confirm that every image opens.
+
+### Exploration
+
+Explore each of these, then write up what you find:
+
+- [ ] Class balance
+- [ ] Description length per class
+- [ ] Price and rating per class
+- [ ] Most frequent words per class
+- [ ] Average cover colour per class
+
+> **Question to answer:** which features actually differ between Fiction and Nonfiction?
+> My guess is that text matters a lot and price and rating very little. Test it rather than assume it.
+
+---
+
+## Step 3: Feature engineering (Days 2–3)
+
+Build three feature sets so you can compare them. **That comparison is what the grade rewards.**
+
+| Feature set | Ideas |
+|-------------|-------|
+| **Text** | Bag-of-words or TF-IDF on title + description. Try with and without stop-word removal. |
+| **Image** | Grayscale vs colour. Colour histograms (the brief's own suggestion). Simple statistics like mean brightness or saturation. Possibly a downscaled image (e.g. 32×32) flattened into a vector. |
+| **Metadata** | Price, rating, stock count, description length |
+
+**Then try a combined set.** Join the feature vectors, or train separate models and average their predicted probabilities. This answers the brief's *"could the text be combined with the image?"* question.
+
+---
+
+## Step 4: Model training (Days 3–4)
+
+Keep the models simple and easy to explain. With about 175 samples, deep learning isn't worth it.
+
+| Role | Model |
+|------|-------|
+| **Baseline** | Always predict the majority class (≈ 63% accuracy). Every model has to beat it. |
+| **Text** | Multinomial Naive Bayes, Logistic Regression. Both are standard for TF-IDF features and easy to justify. |
+| **Image & metadata** | Logistic Regression or Random Forest |
+| **Optional (unsupervised)** | KMeans with k=2 on the TF-IDF vectors. See how well the clusters match the real labels. The brief explicitly invites this kind of exploration. |
+
+> ⚠️ **Pitfall to avoid: data leakage**
+> Don't fit the TF-IDF vectorizer or the scaler on all the data before splitting. Put them in a scikit-learn `Pipeline` so they're fitted only on the training folds. Otherwise information from the test data leaks into training. It's worth one sentence in the report.
+
+---
+
+## Step 5: Evaluation (Day 4)
+
+- **Stratified 5-fold cross-validation** instead of a single train/test split. With 175 samples, one split is too noisy, and stratifying keeps the class ratio the same in every fold.
+- **Metrics:**
+  - Accuracy is misleading on imbalanced data.
+  - Also report **precision, recall and F1**, macro-averaged or per class.
+  - Include a **confusion matrix**.
+- **Comparison table:** one row per model and feature set, with *mean ± standard deviation* over the folds.
+- **Error analysis:** read a few misclassified books. Expect borderline cases like memoirs, historical fiction, and *"a novel based on the life of…"* (one of these is already in your scrape output). These make good discussion material.
+
+---
+
+## Step 6: Write the report (Days 5–6, but start notes now)
+
+**Requirements:** 4–6 pages, **at most 2 images**. Use the brief's section headings.
+
+### Suggested images
+
+1. The comparison chart (F1 for text, image, metadata and combined) **or** the confusion matrix of the best model
+2. A few example covers from each class, to support the image discussion
+
+Everything else can go in tables, which don't count as images.
+
+### Discussion points
+
+- The small dataset
+- The class imbalance
+- The fuzzy boundary between fiction and nonfiction
+- Why image features probably underperform
+- What you'd do with more time:
+  - Scrape related categories like Mystery and History as extra training data
+  - Use pretrained text embeddings or a pretrained CNN for the covers
+
+### References
+
+- books.toscrape.com
+- scikit-learn (Pedregosa et al., 2011)
+- BeautifulSoup
+- The paper for any model you name (e.g. Breiman, 2001 for Random Forest)
+
+---
+
+## Day 7: Buffer
+
+- [ ] Proofread
+- [ ] Check the page count
+- [ ] Export to PDF and submit
+
+---
+
+## Suggested project layout
+
+```
+src/
+└── scraper.py                # run once: writes data/raw/
+notebooks/
+├── scrapeTest.ipynb          # scratchpad for trying out selectors
+├── 02_cleaning_eda.ipynb     # reads data/raw/, writes data/processed/
+└── 03_features_models.ipynb  # reads data/processed/
+data/
+├── raw/
+│   ├── books.csv
+│   └── images/
+└── processed/
+    └── books_clean.csv
+report/
+```
+
+> 💡 Add `data/raw/images/` to `.gitignore`, or commit it deliberately, so the repo size doesn't surprise you later.
