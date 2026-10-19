@@ -12,30 +12,30 @@
 
 ---
 
-## Step 1: Finish the scraper (Day 1)
+## Step 1: Finish the scraper (Day 1) ✅
 
-The prototype in `scrapeTest.ipynb` works, but it prints everything instead of storing it. Move it into `src/scraper.py` and keep the notebook as a scratchpad for trying out selectors.
+Done: `src/scraper.py` scraped **65 Fiction + 110 Nonfiction = 175 books** with all cover images. Details and decisions are in [DOCUMENTATION.md](DOCUMENTATION.md#1-data-collection).
+
+The prototype in `01_scrapeTest.ipynb` worked, but it printed everything instead of storing it. It was moved into `src/scraper.py`, and the notebook stays as a scratchpad for trying out selectors.
 
 ### Changes to make
 
-- [ ] **Save the data.** Build one record per book and write all of them to `data/raw/books.csv` at the end. Each record holds:
+- [x] **Save the data.** Build one record per book and write all of them to `data/raw/books.csv` at the end. Each record holds:
   - title
   - category label
   - description
   - image URL
   - local image path
-  - the extra fields below
-- [ ] **Download the images.** The brief asks you to scrape the image itself, not just its URL. Save each cover to `data/raw/images/` and name the file by the UPC or the book's URL slug, so it stays paired with its row. Skip any image that already exists, so re-running after a crash doesn't download everything again.
-- [ ] **Scrape more fields from the product page.**
-  - The product table holds UPC, price, availability (stock count) and number of reviews.
-  - The star rating is in a CSS class like `star-rating Three`.
-  - Product type, tax and review count are the same for every book. Mention in the report that you noticed this and dropped them. That covers the brief's *"is anything unnecessary?"* question.
-- [ ] **Make the functions self-contained.** The notebook version relies on `homepage_soup` and `base_url` from an earlier cell. In the script, each function should get what it needs through its arguments, so the file runs from top to bottom on its own.
-- [ ] **Add an entry point.** Put the code that runs the scrape under `if __name__ == "__main__":`. Then you can import functions like `scrape_category` into a notebook to test them without starting a full scrape.
-- [ ] **Be polite to the server.** Add a short `time.sleep` between requests, and check the status codes of the book pages too.
-- [ ] **Scrape once, then work from the CSV.** Run the script once from the project root with `python src/scraper.py`. The analysis notebooks only read `data/raw/books.csv` and never call the scraper.
+- [x] **Download the images.** The brief asks you to scrape the image itself, not just its URL. Save each cover to `data/raw/images/` and name the file by the book's URL slug (e.g. `its-only-the-himalayas_981.jpg`), so it stays paired with its row. Skip any image that already exists, so re-running after a crash doesn't download everything again.
+- [x] **Explain which fields you kept.** The product page also has UPC, price, stock, rating, product type, tax and number of reviews. You deliberately keep only the text and the image, because those are what describe the book's content. Product type, tax and review count are the same for every book anyway. Mention this choice in the report. That covers the brief's *"is anything unnecessary?"* question.
+- [x] **Make the functions self-contained.** The notebook version relies on `homepage_soup` and `base_url` from an earlier cell. In the script, each function should get what it needs through its arguments, so the file runs from top to bottom on its own.
+- [x] **Add an entry point.** Put the code that runs the scrape under `if __name__ == "__main__":`. Then you can import functions like `scrape_category` into a notebook to test them without starting a full scrape.
+- [x] **Be polite to the server.** Add a short `time.sleep` between requests, and check the status codes of the book pages too.
+- [x] **Scrape once, then work from the CSV.** Run the script once from the project root with `python src/scraper.py`. The analysis notebooks only read `data/raw/books.csv` and never call the scraper.
 
-> **What to expect:** roughly **65 Fiction** and **110 Nonfiction** books, about **175 in total**. That's a small, imbalanced dataset, and it shapes everything after this step. Put the exact counts in the introduction.
+> **Result:** exactly **65 Fiction** and **110 Nonfiction** books, **175 in total**. That's a small, imbalanced dataset, and it shapes everything after this step. Put the exact counts in the introduction.
+>
+> `data/raw/` is in `.gitignore`, so the scraped data is not in the repo. Anyone who clones it recreates the data with `python src/scraper.py`.
 
 ---
 
@@ -45,38 +45,37 @@ Start a new notebook for this, e.g. `02_cleaning_eda.ipynb`. It reads `data/raw/
 
 ### Cleaning
 
-- [ ] **Missing descriptions:** a few books have none. Decide whether to drop them or use the title only, and document the choice.
-- [ ] **Clean the text:** descriptions end with `...more`, and some contain odd characters caused by encoding problems.
-- [ ] **Convert types:**
-  - price → `float`
-  - rating → `1–5`
-  - stock count → `int`
-- [ ] **Check duplicates and image integrity:** look for duplicate titles and UPCs, and confirm that every image opens.
+- [x] **Missing descriptions:** checked, every book has one. Nothing to drop. Mention this in the report.
+- [ ] **Clean the text:**
+  - Remove the `...more` at the end (171 of 175 descriptions).
+  - Remove the repeated teaser at the start (168 of 175): the first ~375 characters appear twice. Find where the opening reappears and keep only the text from there.
+  - Some books (e.g. *Soumission*) are not in English. Decide how to handle them.
+- [ ] **Check duplicates and image integrity:** already confirmed: no duplicate titles, and every row has an `image_path` pointing to an existing file. Still to do: confirm that every image actually opens (e.g. with Pillow).
 
 ### Exploration
 
 Explore each of these, then write up what you find:
 
 - [ ] Class balance
-- [ ] Description length per class
-- [ ] Price and rating per class
+- [ ] Description and title length per class
 - [ ] Most frequent words per class
-- [ ] Average cover colour per class
+- [ ] Average cover colour and brightness per class
 
 > **Question to answer:** which features actually differ between Fiction and Nonfiction?
-> My guess is that text matters a lot and price and rating very little. Test it rather than assume it.
+> My guess is that the text matters a lot and the covers much less. Test it rather than assume it.
 
 ---
 
 ## Step 3: Feature engineering (Days 2–3)
 
-Build three feature sets so you can compare them. **That comparison is what the grade rewards.**
+Build a text and an image feature set so you can compare them. **That comparison is what the grade rewards.**
 
 | Feature set | Ideas |
 |-------------|-------|
-| **Text** | Bag-of-words or TF-IDF on title + description. Try with and without stop-word removal. |
+| **Text** | Bag-of-words or TF-IDF on title + description. Try with and without stop-word removal. Optionally add simple length features (description and title length). |
 | **Image** | Grayscale vs colour. Colour histograms (the brief's own suggestion). Simple statistics like mean brightness or saturation. Possibly a downscaled image (e.g. 32×32) flattened into a vector. |
-| **Metadata** | Price, rating, stock count, description length |
+
+Within each set, compare a few variants (e.g. TF-IDF with vs without stop words, grayscale vs colour histograms). That gives the comparison table more rows.
 
 **Then try a combined set.** Join the feature vectors, or train separate models and average their predicted probabilities. This answers the brief's *"could the text be combined with the image?"* question.
 
@@ -90,7 +89,7 @@ Keep the models simple and easy to explain. With about 175 samples, deep learnin
 |------|-------|
 | **Baseline** | Always predict the majority class (≈ 63% accuracy). Every model has to beat it. |
 | **Text** | Multinomial Naive Bayes, Logistic Regression. Both are standard for TF-IDF features and easy to justify. |
-| **Image & metadata** | Logistic Regression or Random Forest |
+| **Image** | Logistic Regression or Random Forest |
 | **Optional (unsupervised)** | KMeans with k=2 on the TF-IDF vectors. See how well the clusters match the real labels. The brief explicitly invites this kind of exploration. |
 
 > ⚠️ **Pitfall to avoid: data leakage**
@@ -116,7 +115,7 @@ Keep the models simple and easy to explain. With about 175 samples, deep learnin
 
 ### Suggested images
 
-1. The comparison chart (F1 for text, image, metadata and combined) **or** the confusion matrix of the best model
+1. The comparison chart (F1 for text, image and combined) **or** the confusion matrix of the best model
 2. A few example covers from each class, to support the image discussion
 
 Everything else can go in tables, which don't count as images.
@@ -126,6 +125,7 @@ Everything else can go in tables, which don't count as images.
 - The small dataset
 - The class imbalance
 - The fuzzy boundary between fiction and nonfiction
+- Why you kept only text and images (and dropped price, rating etc.)
 - Why image features probably underperform
 - What you'd do with more time:
   - Scrape related categories like Mystery and History as extra training data
@@ -154,7 +154,7 @@ Everything else can go in tables, which don't count as images.
 src/
 └── scraper.py                # run once: writes data/raw/
 notebooks/
-├── scrapeTest.ipynb          # scratchpad for trying out selectors
+├── 01_scrapeTest.ipynb       # scratchpad for trying out selectors
 ├── 02_cleaning_eda.ipynb     # reads data/raw/, writes data/processed/
 └── 03_features_models.ipynb  # reads data/processed/
 data/
@@ -166,4 +166,4 @@ data/
 report/
 ```
 
-> 💡 Add `data/raw/images/` to `.gitignore`, or commit it deliberately, so the repo size doesn't surprise you later.
+> 💡 `data/raw/` and `__pycache__/` are in `.gitignore`. `data/processed/` is still tracked, so cleaned data can be committed if you want to.

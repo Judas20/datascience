@@ -4,9 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-School data science project: scrape the **Fiction** and **Nonfiction** categories from https://books.toscrape.com (title, description, cover image, price, rating, stock, UPC), then build classifiers that predict Fiction vs Nonfiction from text, image and metadata features, and compare them. The deliverable is a 4–6 page report with at most 2 images.
+School data science project: scrape the **Fiction** and **Nonfiction** categories from https://books.toscrape.com (title, description, cover image), then build classifiers that predict Fiction vs Nonfiction from text and image features, and compare them. Price, rating, stock and UPC are deliberately not scraped. The deliverable is a 4–6 page report with at most 2 images.
 
 `PLAN.md` is the step-by-step roadmap (scraping → cleaning/EDA → features → models → evaluation → report). Read it before starting a new phase.
+
+`DOCUMENTATION.md` is the running log the user will write the report from. Keep it up to date as part of the work, without being asked: whenever a step is finished, a decision is made or changed, or a result comes in, add it to the matching section. Record what was done, the decision and the reason for it, the actual numbers and results (check them against the data, never estimate), and a "For the report" note on what is worth writing up. If an earlier entry stops being true, correct it rather than adding a contradicting one. Mark each section's status and date.
 
 The user is learning both data science and Claude Code. Explain the reasoning behind changes so they can understand and defend the work.
 
@@ -27,8 +29,8 @@ jupyter lab
 
 ## Structure and conventions
 
-- Scraping lives in `src/scraper.py`, which writes `data/raw/books.csv` and `data/raw/images/` (covers named by UPC or URL slug so each image stays paired with its row). Run code goes under `if __name__ == "__main__":` so functions can be imported into notebooks for testing.
-- Analysis happens in notebooks under `notebooks/`: `02_cleaning_eda` (reads `data/raw/`, writes `data/processed/books_clean.csv`) and `03_features_models` (reads `data/processed/`). `scrapeTest.ipynb` is a scratchpad for trying out selectors, and `demo.ipynb` holds BeautifulSoup practice.
+- Scraping lives in `src/scraper.py`, which writes `data/raw/books.csv` (columns: title, category, description, image_url, image_path) and `data/raw/images/` (covers named by the book's URL slug; `image_path` is relative to `data/raw/`). Run code goes under `if __name__ == "__main__":` so functions can be imported into notebooks for testing.
+- Analysis happens in notebooks under `notebooks/`: `02_cleaning_eda` (reads `data/raw/`, writes `data/processed/books_clean.csv`) and `03_features_models` (reads `data/processed/`). `01_scrapeTest.ipynb` is a scratchpad for trying out selectors, and `demo.ipynb` holds BeautifulSoup practice.
 - Scrape once. Notebooks load the CSV and never call the scraper or re-hit the site. When scraping, add a `time.sleep` between requests, check status codes, and skip images that already exist.
 - Never overwrite `data/raw/` from the notebooks. Cleaned output goes to `data/processed/`.
 

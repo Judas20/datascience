@@ -1,0 +1,9 @@
+# Python cache files, created automatically when modules are imported
+__pycache__/
+*.pyc
+
+# Claude Code's local settings folder
+.claude/
+
+# Raw scraped data (books.csv + cover images). Recreate it with: python src/scraper.py
+data/raw/
