@@ -57,8 +57,8 @@ It reads `data/raw/books.csv`, cleans the `description` column and saves `data/p
   - Removes the repeated teaser at the start (171 of 175), by matching the first 20 characters and only cutting at position 350–400.
   - Replaces non-breaking spaces and double spaces with single spaces, and deletes soft hyphens.
 - [ ] **Optional: verification cell in the notebook.** Load `data/processed/books_clean.csv` and print a few counts as visible proof that the cleaning worked: no `...more`, no empty descriptions, no `\xa0`/`\xad`/double spaces, and only *Crazy Rich Asians* still repeating its opening. The expected results are in DOCUMENTATION.md.
-- [ ] **Non-English books:** some books (e.g. *Soumission*) are not in English. Decide how to handle them.
-- [ ] **Check duplicates and image integrity:** already confirmed: no duplicate titles, and every row has an `image_path` pointing to an existing file. Still to do: confirm that every image actually opens (e.g. with Pillow).
+- [x] **Non-English books:** only *Soumission* (French) is not in English. Decision: keep it. See DOCUMENTATION.md for how this was checked and why.
+- [x] **Check duplicates and image integrity:** no duplicate titles, every row has an `image_path` pointing to an existing file, and all 175 images open without errors (checked with Pillow's `img.load()`).
 
 ### Exploration
 
@@ -81,6 +81,7 @@ Build a text and an image feature set so you can compare them. **That comparison
 | Feature set | Ideas |
 |-------------|-------|
 | **Text** | Bag-of-words or TF-IDF on title + description. Try with and without stop-word removal. Optionally add simple length features (description and title length). |
+| **Title features** | Found in the exploration: colon in the title (subtitle), series marker (`#` + digit), title word count. TF-IDF drops punctuation, so these must be added as explicit features. A one-rule "colon → Nonfiction" classifier already gets 81%. |
 | **Image** | Grayscale vs colour. Colour histograms (the brief's own suggestion). Simple statistics like mean brightness or saturation. Possibly a downscaled image (e.g. 32×32) flattened into a vector. |
 
 Within each set, compare a few variants (e.g. TF-IDF with vs without stop words, grayscale vs colour histograms). That gives the comparison table more rows.

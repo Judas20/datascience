@@ -117,6 +117,62 @@ Steps, in this order:
 
 **Verified on all 175 descriptions:** none ends with `...more`, none is empty, all 171 teasers removed (only *Crazy Rich Asians* still repeats its opening, which is real text), no non-breaking spaces, soft hyphens, double spaces or surrounding whitespace left, and running the function twice gives the same result.
 
+### Non-English books
+
+**Only 1 of 175 books is not in English: *Soumission* (Fiction, French).** Decision: **keep it** (dataset stays at 175 books: 65 Fiction, 110 Nonfiction).
+
+How this was found (2026-10-20):
+
+1. An "English score" per description: the share of words that are very common English words (*the, and, or, but, in, on, at, to, for, of, with, by*). Books scoring below 0.1 were read by hand.
+2. Four books scored below 0.1, but only *Soumission* (score 0.0) is foreign. The other three are short English texts: *Kindle Paperwhite User's Guide* (0.0, the description is just the title, 4 words), *Data, A Love Story* (0.069) and *The Bourne Identity* (0.087).
+3. Cross-checked with two other methods: counting common French/German/Spanish/Italian/Dutch words (*Soumission* has 16, no other book more than 2), and the share of accented letters (*Soumission* 2.6%, every other book below 0.4%). Both point only to *Soumission*.
+
+| Decision | Reason |
+|----------|--------|
+| Keep *Soumission* instead of dropping it | It is only 1 book, and the dataset is already small. Its cover is a normal image, so it is still useful for the image features. It is also an interesting test case: can the text model classify a French description at all? |
+| Read the low-scoring books instead of trusting the threshold | The score alone can't separate the classes cleanly: short English descriptions also score low (0.069 and 0.087 vs 0.0 for the French one), so there is no clear gap. |
+
+> **For the report:** a simple word-frequency heuristic plus manual reading was enough to check the language; mention that short texts make such a score unreliable, which is why the results were read and cross-checked.
+>
+> *Kindle Paperwhite User's Guide* has a description that is only its own title (4 words). Worth keeping in mind for the error analysis.
+
+### Exploration: class balance
+
+110 Nonfiction (63%) vs 65 Fiction (37%). A model that always predicts Nonfiction is right 63% of the time, so that is the baseline. Because of the imbalance, accuracy alone is misleading; report precision/recall/F1 per class and a confusion matrix, and use stratified cross-validation.
+
+### Exploration: lengths
+
+| Words | Fiction median (middle 50%) | Nonfiction median (middle 50%) | Overlap |
+|---|---|---|---|
+| Description | 173 (147–212) | 201.5 (145–255) | Large: the middle ranges almost coincide |
+| Title | 4 (2–5) | 9 (5–13) | Almost none |
+
+- Description length is a **weak** signal: Nonfiction is slightly longer on average, but the ranges overlap heavily. Nonfiction also has the extremes (4 words for *Kindle Paperwhite User's Guide*, up to 746 words), which explains its larger spread (std 107 vs 62).
+- Title length is a **strong** signal: Nonfiction titles are about twice as long. The title patterns below explain why.
+
+### Exploration: title patterns
+
+Found by reading random samples of titles from each class (`groupby("category").sample(...)`), then counting with `str.contains`:
+
+| Pattern | Fiction | Nonfiction | Explanation |
+|---|---|---|---|
+| **Colon** (`:`) | 1 of 65 (1.5%) | 78 of 110 (71%) | Nonfiction titles usually have a subtitle explaining the topic (*Black Flags: The Rise of ISIS*). The only Fiction one is *Hystopia: A Novel*, whose subtitle literally says it's fiction. |
+| **Series marker** (`#` + digit, regex `r"#\d"`) | 17 of 65 (26%) | 4 of 110 (3.6%) | Novels often belong to a series, e.g. *The Bourne Identity (Jason Bourne #1)*. The 4 Nonfiction matches are real series too (e.g. *Night (The Night Trilogy #1)*). |
+
+- Matching a plain `#` also caught hashtags (*#HigherSelfie: …*), so the pattern was narrowed to `#` followed by a digit.
+- Together: 82 of 110 Nonfiction titles have a colon or a series marker, against 18 of 65 Fiction titles (mostly series markers). A simple rule "colon in title → Nonfiction, otherwise Fiction" alone would already classify 142 of 175 books correctly (81%), well above the 63% baseline.
+- **Important for feature engineering:** TF-IDF's default tokenizer drops punctuation, so a text model on title + description would *not* see the colon or `#`. To use these signals, they need to be added as explicit features (e.g. `has_colon`, `has_series`, `title_words`).
+
+> **For the report:** the title patterns are a strong, explainable finding from the exploration, and they came from simply reading the data. The 81% of the one-rule "colon" classifier is a nice second reference point next to the 63% baseline. Discuss whether this generalises: subtitles are common for nonfiction in general, but the series share depends on which books this site happens to include.
+
+### Image integrity check
+
+All **175 of 175** cover images open without errors (checked 2026-10-20 with Pillow).
+
+| Decision | Reason |
+|----------|--------|
+| Check with `img.load()` inside `try`/`except`, not `img.verify()` | `verify()` always returns `None` and only raises an error on some problems. In a test, it did not notice a JPEG cut off halfway (like an interrupted download), while `load()` reads the whole image and caught it. |
+
 > **For the report:** the teaser is a good data-quality example. It was only found by reading the raw data, and a naive fix (40-character match) silently missed 3 cases. Explain the 20-character choice with the tested range, and the two independent checks (the text matches *and* it is at the expected position).
 
 ---
