@@ -64,13 +64,13 @@ It reads `data/raw/books.csv`, cleans the `description` column and saves `data/p
 
 Explore each of these, then write up what you find:
 
-- [ ] Class balance
-- [ ] Description and title length per class
-- [ ] Most frequent words per class
-- [ ] Average cover colour and brightness per class
+- [x] Class balance
+- [x] Description and title length per class
+- [x] Most frequent words per class
+- [x] Average cover colour and brightness per class
 
 > **Question to answer:** which features actually differ between Fiction and Nonfiction?
-> My guess is that the text matters a lot and the covers much less. Test it rather than assume it.
+> **Answer (details in DOCUMENTATION.md):** the text matters a lot and the covers much less. Strongest: title patterns (colon/subtitle, series marker, title length) and pronouns in the description (*her/she/his* for Fiction, *we/our/you* for Nonfiction). Weak: description length. No single cover colour statistic beats the 63% baseline.
 
 ---
 

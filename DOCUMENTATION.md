@@ -88,7 +88,7 @@ Finally the code was moved from the notebook into the script `src/scraper.py`.
 
 ## 2. Cleaning and exploration
 
-*Status: in progress (2026-10-19). Description cleaning done and saved; non-English books and exploration not started.*
+*Status: done (2026-10-22).*
 
 The cleaning was worked out in [notebooks/02_cleaning_eda.ipynb](notebooks/02_cleaning_eda.ipynb) using pandas, then moved into the script [src/clean.py](src/clean.py), run with `python src/clean.py`. It reads `data/raw/books.csv`, replaces the `description` column with the cleaned text, and saves `data/processed/books_clean.csv` (175 rows, same 5 columns as the raw file). The script has no built-in checks, to keep it simple: the cleaning was verified once on the full dataset (results below), and since the raw data doesn't change, that verification still holds. It only needs repeating if the data is re-scraped. Like the scraper, the cleaning is a fixed step from raw to processed data, so a script keeps one version of the code and can't break from cells run twice or out of order. The notebook keeps the investigation behind each decision.
 
@@ -166,7 +166,7 @@ Found by reading random samples of titles from each class (`groupby("category").
 
 > **For the report:** the title patterns are a strong, explainable finding from the exploration, and they came from simply reading the data. The 81% of the one-rule "colon" classifier is a nice second reference point next to the 63% baseline. Discuss whether this generalises: subtitles are common for nonfiction in general, but the series share depends on which books this site happens to include.
 
-### Exploration: most frequent words (in progress)
+### Exploration: most frequent words
 
 - Counting words per class with `collections.Counter`: the top 10 of both classes is almost entirely stop words (*the, and, a, of, to, in, is*), so raw counts say little about the difference between the classes.
 - Exception: **personal pronouns are much more frequent in Fiction**, per 1,000 words (Fiction 12,009 words in total, Nonfiction 23,705):
@@ -240,7 +240,30 @@ Choosing the box plots uses one of the two slots, so the "example covers per cla
 
 ## 4. Model training
 
-*Status: not started*
+*Status: in progress (2026-10-22).*
+
+Notebook: `notebooks/03_features_models.ipynb`, using scikit-learn.
+
+### Evaluation setup
+
+Every feature set and model is scored with the same function: **stratified 5-fold cross-validation** (`StratifiedKFold(n_splits=5, shuffle=True, random_state=42)`), reporting accuracy and macro F1 as mean ± standard deviation over the 5 folds.
+
+| Decision | Reason |
+|----------|--------|
+| One shared `evaluate()` function | Every row in the comparison table is measured exactly the same way, so the comparison is fair. |
+| Stratified 5-fold CV, not one train/test split | With 175 books, a single split is too noisy. Stratifying keeps the 63/37 class ratio in every fold, so each fold has enough Fiction books. |
+| Fixed `random_state=42` | The same split every run, so results are reproducible. |
+| Macro F1 next to accuracy | Macro F1 averages the F1 of both classes equally, so the smaller Fiction class counts as much as Nonfiction. |
+
+### Results
+
+| Features | Model | Accuracy | Macro F1 |
+|---|---|---|---|
+| — | Baseline: always "Nonfiction" (`DummyClassifier`) | 0.629 ± 0.000 | 0.386 ± 0.000 |
+
+- The baseline shows why accuracy alone is misleading: 63% accuracy without learning anything, but a macro F1 of only 0.386, because its F1 for Fiction is 0 (it never predicts Fiction). The ± 0.000 is because stratification gives every fold the same class ratio.
+
+> **For the report:** introduce the baseline with both numbers. "Beating the baseline" means beating 0.629 accuracy *and* 0.386 macro F1; macro F1 is the more honest metric for this imbalanced dataset.
 
 ---
 
