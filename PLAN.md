@@ -124,8 +124,10 @@ Keep the models simple and easy to explain. With about 175 samples, deep learnin
 
 ### Suggested images
 
-1. The comparison chart (F1 for text, image and combined) **or** the confusion matrix of the best model
-2. A few example covers from each class, to support the image discussion
+1. **Chosen:** the box plots of description and title length per class (from the exploration). See "Report images" in DOCUMENTATION.md.
+2. The comparison chart (F1 for text, image and combined) **or** the confusion matrix of the best model.
+
+(Example covers per class no longer fit within the 2-image limit.)
 
 Everything else can go in tables, which don't count as images.
 

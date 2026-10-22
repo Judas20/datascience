@@ -25,7 +25,7 @@ jupyter lab
 ```
 
 - `requirements.txt` is a full `pip freeze`, saved as UTF-8. When regenerating it, use `pip freeze | Out-File -Encoding utf8 requirements.txt`; PowerShell's plain `>` redirect would save it as UTF-16, which grep/diff tools can't read.
-- pandas is installed. scikit-learn and Pillow are not installed yet. PLAN.md needs them for later phases, so add them to the venv and to requirements.txt when that work starts.
+- pandas, Pillow and matplotlib are installed. scikit-learn is not installed yet; add it to the venv and to requirements.txt when the modelling work starts.
 - There are no tests, linter or build step.
 
 ## Structure and conventions

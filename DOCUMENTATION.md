@@ -149,6 +149,7 @@ How this was found (2026-10-20):
 
 - Description length is a **weak** signal: Nonfiction is slightly longer on average, but the ranges overlap heavily. Nonfiction also has the extremes (4 words for *Kindle Paperwhite User's Guide*, up to 746 words), which explains its larger spread (std 107 vs 62).
 - Title length is a **strong** signal: Nonfiction titles are about twice as long. The title patterns below explain why.
+- **Report image:** the side-by-side box plots of description length and title length per class (matplotlib, made in `02_cleaning_eda.ipynb`) are chosen as one of the report's images. See [Report images](#report-images).
 
 ### Exploration: title patterns
 
@@ -165,6 +166,27 @@ Found by reading random samples of titles from each class (`groupby("category").
 
 > **For the report:** the title patterns are a strong, explainable finding from the exploration, and they came from simply reading the data. The 81% of the one-rule "colon" classifier is a nice second reference point next to the 63% baseline. Discuss whether this generalises: subtitles are common for nonfiction in general, but the series share depends on which books this site happens to include.
 
+### Exploration: most frequent words (in progress)
+
+- Counting words per class with `collections.Counter`: the top 10 of both classes is almost entirely stop words (*the, and, a, of, to, in, is*), so raw counts say little about the difference between the classes.
+- Exception: **personal pronouns are much more frequent in Fiction**, per 1,000 words (Fiction 12,009 words in total, Nonfiction 23,705):
+
+| Word | Fiction | Nonfiction |
+|---|---|---|
+| her | 14.7 | 5.1 |
+| his | 9.3 | 5.3 |
+| she | 7.6 | 3.2 |
+| he | 5.2 | 3.3 |
+
+  Fiction descriptions tell the story of characters ("*she* discovers…", "*his* past…"), while Nonfiction descriptions talk about a topic.
+- **Important for feature engineering:** these pronouns are on standard stop-word lists (including scikit-learn's English list), so "TF-IDF with stop-word removal" would throw this signal away. That makes the with/without stop words comparison in Step 3 more interesting, and is a reason to consider a custom stop-word list.
+- Compare classes with **relative frequencies** (per 1,000 words), not raw counts: Nonfiction has about twice as many words in total, so its raw counts are higher for almost every word.
+- **Words that differ most between the classes** (difference in frequency per 1,000 words, after removing 17 basic stop words; words seen fewer than 10 times ignored), shown as a diverging bar chart in `02_cleaning_eda.ipynb`:
+  - More frequent in **Fiction**: *her* (+13.1), *she* (+6.0), *his* (+5.5), *novel* (+4.1), *family* (+3.0), *love* (+2.8), *he* (+2.6), *secrets* (+1.9). Characters, relationships and the word "novel" itself.
+  - More frequent in **Nonfiction**: *our* (−5.9), *we* (−4.8), *us* (−2.9), *book* (−2.9), *your* (−2.7), *i* (−2.2), *you* (−2.2), *how* (−2.3). First and second person: the author speaking ("*I*", "*we*") and addressing the reader ("*you*", "*how* to…"), typical of memoirs and self-help.
+  - Grammatical words that are common in both classes ended up near 0, which confirms they are filler.
+- Descriptions use both straight (`'`, 230×) and curly (`’`, 318×) apostrophes. A word regex must accept both, otherwise *Jane’s* splits into *jane* and *s*.
+
 ### Image integrity check
 
 All **175 of 175** cover images open without errors (checked 2026-10-20 with Pillow).
@@ -174,6 +196,21 @@ All **175 of 175** cover images open without errors (checked 2026-10-20 with Pil
 | Check with `img.load()` inside `try`/`except`, not `img.verify()` | `verify()` always returns `None` and only raises an error on some problems. In a test, it did not notice a JPEG cut off halfway (like an interrupted download), while `load()` reads the whole image and caught it. |
 
 > **For the report:** the teaser is a good data-quality example. It was only found by reading the raw data, and a naive fix (40-character match) silently missed 3 cases. Explain the 20-character choice with the tested range, and the two independent checks (the text matches *and* it is at the expected position).
+
+---
+
+## Report images
+
+The report may contain **at most 2 images**. Tables don't count.
+
+| # | Image | Source | Status | Why |
+|---|---|---|---|---|
+| 1 | Box plots: description length and title length per class, side by side | `notebooks/02_cleaning_eda.ipynb` (matplotlib) | Chosen (2026-10-20). Not yet saved to a file. | Shows at a glance that title length separates Fiction and Nonfiction (medians 4 vs 9 words, boxes barely overlap) while description length doesn't (boxes almost coincide). |
+| 2 | Open | | | PLAN.md suggests either the model comparison chart (F1 per feature set) or the confusion matrix of the best model. |
+
+Choosing the box plots uses one of the two slots, so the "example covers per class" image suggested in PLAN.md no longer fits. Covers can still be described in words or in a table (e.g. average brightness per class).
+
+> To use the plot in the report, save it as a file from the notebook, e.g. `plt.savefig("../report/figures/length_boxplots.png", dpi=200, bbox_inches="tight")` (before `plt.show()`).
 
 ---
 
