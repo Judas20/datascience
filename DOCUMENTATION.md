@@ -187,6 +187,24 @@ Found by reading random samples of titles from each class (`groupby("category").
   - Grammatical words that are common in both classes ended up near 0, which confirms they are filler.
 - Descriptions use both straight (`'`, 230×) and curly (`’`, 318×) apostrophes. A word regex must accept both, otherwise *Jane’s* splits into *jane* and *s*.
 
+### Exploration: cover colours
+
+Per cover, computed with Pillow's `ImageStat`: mean brightness (grayscale), mean red/green/blue, and mean saturation (S channel of HSV: 0 = grey, 255 = vivid).
+
+| Feature | Fiction median (middle 50%) | Nonfiction median (middle 50%) |
+|---|---|---|
+| Brightness | 145.7 (91.6–181.3) | 151.4 (99.8–192.6) |
+| Red | 148.8 (94.4–192.7) | 165.1 (109.4–213.5) |
+| Green | 141.7 (92.7–184.0) | 146.2 (89.0–196.0) |
+| Blue | 131.8 (75.9–174.9) | 145.2 (84.4–189.3) |
+| Saturation | 92.4 (49.7–121.8) | 69.2 (36.3–122.5) |
+
+- **Saturation shows the largest difference in medians:** Fiction covers tend to be more vivid. But the overlap is large, and the upper quartiles are almost identical (121.8 vs 122.5).
+- **None of these features separates the classes on its own.** For each feature, the best possible single cut-off (e.g. "saturation above X → Fiction") was tested on all 175 books: the best result is 62.9–64.0% accuracy, essentially the 62.9% majority baseline. And this is an optimistic test, because the cut-off was chosen on the same data it was scored on.
+- Compare with the titles: the one-rule "colon" classifier reaches 81%.
+
+> **For the report:** this supports the expected discussion point that simple image features underperform. Cover colour statistics differ slightly on average (Fiction more saturated), but the classes overlap almost completely, so no single colour statistic beats the baseline. Possible reasons: both classes contain all kinds of designs, and average colour ignores what is actually *on* the cover (faces, illustrations, text layout). Combining several image features in a model (Step 3/4) is the real test.
+
 ### Image integrity check
 
 All **175 of 175** cover images open without errors (checked 2026-10-20 with Pillow).
