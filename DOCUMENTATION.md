@@ -224,7 +224,7 @@ The report may contain **at most 2 images**. Tables don't count.
 | # | Image | Source | Status | Why |
 |---|---|---|---|---|
 | 1 | Box plots: description length and title length per class, side by side | `notebooks/02_cleaning_eda.ipynb` (matplotlib) | Chosen (2026-10-20). Not yet saved to a file. | Shows at a glance that title length separates Fiction and Nonfiction (medians 4 vs 9 words, boxes barely overlap) while description length doesn't (boxes almost coincide). |
-| 2 | Open | | | PLAN.md suggests either the model comparison chart (F1 per feature set) or the confusion matrix of the best model. |
+| 2 | Confusion matrix of the final model (TF-IDF + title features) | `notebooks/03_features_models.ipynb` (`ConfusionMatrixDisplay`) | Saved as `report/figures/confusion_matrix.png` (2026-10-23). | Shows the lopsided errors: 2 of 65 Fiction books missed vs 19 of 110 Nonfiction books called Fiction. |
 
 Choosing the box plots uses one of the two slots, so the "example covers per class" image suggested in PLAN.md no longer fits. Covers can still be described in words or in a table (e.g. average brightness per class).
 
@@ -234,13 +234,42 @@ Choosing the box plots uses one of the two slots, so the "example covers per cla
 
 ## 3. Feature engineering
 
-*Status: not started*
+*Status: done (2026-10-23).*
+
+### Title features
+
+The title patterns from the exploration were turned into three explicit features by `title_features()` in `03_features_models.ipynb`:
+
+| Feature | How | Why |
+|---|---|---|
+| `has_colon` | `str.contains(":")` → 0/1 | Subtitles are typical for Nonfiction (71% vs 1.5%). |
+| `has_series` | `str.contains(r"#\d")` → 0/1 | Series markers are typical for Fiction (26% vs 3.6%). `#` + digit avoids matching hashtags. |
+| `title_words` | `str.split().str.len()` | Nonfiction titles are about twice as long (mean 9.4 vs 3.7 words). |
+
+TF-IDF drops punctuation, so the colon and `#` signals would be lost without these explicit features. Checked with `X_title.groupby(y).mean()`: the class means match the exploration exactly (colon 0.015 / 0.709, series 0.262 / 0.036).
+
+### Text features
+
+TF-IDF on title + description, with and without scikit-learn's English stop-word list. Results in section 4.
+
+### Image features
+
+`cover_stats()` in `03_features_models.ipynb` computes five statistics per cover with Pillow's `ImageStat`, the same ones as in the exploration: mean brightness (grayscale), mean red, green and blue, and mean saturation (HSV). No Pipeline is needed for the extraction itself, because each book's features come only from its own cover; the scaler that follows is inside the Pipeline.
+
+**Decision (2026-10-23): stop at this one image model and don't combine images with text.**
+
+| Decision | Reason |
+|---|---|
+| Only the 5 colour statistics, no colour histograms or downscaled pixels | The exploration already showed that no single colour statistic beats the baseline, and the image-only model confirmed it (0.474 macro F1, accuracy below the baseline). More elaborate colour features were not expected to change the conclusion, so the time went into the text models. |
+| No text + image combination | With features this weak, adding them to the text model mainly adds noise. |
+
+> **For the report:** the image result answers the brief's image question honestly: simple colour features describe the overall look of a cover, not what is on it (faces, illustrations, typography), and that is not enough to tell Fiction from Nonfiction here. A pretrained CNN on the covers belongs under "what we'd do with more time". State that combining text and image was considered but left out, and why.
 
 ---
 
 ## 4. Model training
 
-*Status: in progress (2026-10-22).*
+*Status: done (2026-10-23).*
 
 Notebook: `notebooks/03_features_models.ipynb`, using scikit-learn.
 
@@ -260,6 +289,44 @@ Every feature set and model is scored with the same function: **stratified 5-fol
 | Features | Model | Accuracy | Macro F1 |
 |---|---|---|---|
 | — | Baseline: always "Nonfiction" (`DummyClassifier`) | 0.629 ± 0.000 | 0.386 ± 0.000 |
+| TF-IDF (title + description) | Multinomial NB | 0.629 ± 0.000 | 0.386 ± 0.000 |
+| TF-IDF, stop words removed | Multinomial NB | 0.629 ± 0.000 | 0.386 ± 0.000 |
+| TF-IDF (title + description) | Logistic Regression | 0.663 ± 0.042 | 0.483 ± 0.089 |
+| TF-IDF, stop words removed | Logistic Regression | 0.629 ± 0.000 | 0.386 ± 0.000 |
+| Word counts (title + description) | Multinomial NB | 0.789 ± 0.046 | 0.731 ± 0.077 |
+| Word counts, stop words removed | Multinomial NB | 0.840 ± 0.023 | 0.822 ± 0.032 |
+| TF-IDF (title + description) | Logistic Regression, `class_weight="balanced"`, C=1 | 0.846 ± 0.043 | 0.827 ± 0.049 |
+| TF-IDF, stop words removed | Logistic Regression, `class_weight="balanced"`, C=1 | 0.829 ± 0.048 | 0.802 ± 0.057 |
+| TF-IDF (title + description) | Logistic Regression, balanced, C=10 | 0.857 ± 0.040 | 0.838 ± 0.049 |
+| TF-IDF (title + description) | Logistic Regression, balanced, C=100 | 0.874 ± 0.039 | 0.857 ± 0.048 |
+| TF-IDF (title + description) | Logistic Regression, balanced, C=1000 | 0.869 ± 0.046 | 0.849 ± 0.058 |
+| TF-IDF (title + description) | Logistic Regression, balanced, **C chosen by nested CV** | 0.869 ± 0.046 | 0.849 ± 0.058 |
+| Image: 5 cover statistics | StandardScaler + Logistic Regression, balanced | 0.497 ± 0.039 | 0.474 ± 0.037 |
+| Title: `has_colon` only | StandardScaler + Logistic Regression | 0.811 ± 0.050 | 0.810 ± 0.049 |
+| Title: all three features | StandardScaler + Logistic Regression | 0.823 ± 0.058 | 0.818 ± 0.059 |
+| Title: without `has_colon` | StandardScaler + Logistic Regression | 0.817 ± 0.014 | 0.803 ± 0.011 |
+| Title: without `has_series` | StandardScaler + Logistic Regression | 0.817 ± 0.053 | 0.815 ± 0.053 |
+| Title: without `title_words` | StandardScaler + Logistic Regression | 0.811 ± 0.050 | 0.810 ± 0.049 |
+| **TF-IDF + title features (final model)** | Logistic Regression, balanced, C chosen by nested CV | **0.880 ± 0.038** | **0.877 ± 0.038** |
+
+- **Final model: text + title features.** A `ColumnTransformer` sends the text column through TF-IDF and the three title features through a `StandardScaler`, then joins them for one Logistic Regression (balanced, C by nested CV). It beats text alone (0.849 → 0.877 macro F1) and title features alone (0.818), because each covers what the other misses: TF-IDF can't see the colon or `#`, and the title features know nothing about the description. The gain over text alone (0.028) is smaller than the fold-to-fold standard deviation (0.038), so it is a likely improvement, not a proven one.
+- **The default TF-IDF models collapsed to the baseline:** three of the four predict "Nonfiction" for every book (identical scores to the `DummyClassifier`). This was a model-setup problem, not a lack of signal in the text: with default settings, the word evidence was too weak compared to the 63% class prior (Naive Bayes) and to the regularization plus class imbalance (Logistic Regression).
+- **Fixes (2026-10-23):**
+
+| Fix | Reason |
+|---|---|
+| `CountVectorizer` instead of `TfidfVectorizer` for Naive Bayes | Multinomial NB is built for word counts. TF-IDF turns them into small fractions, so the word evidence couldn't outweigh the 63% Nonfiction prior. |
+| `class_weight="balanced"` for Logistic Regression | Errors on the smaller Fiction class weigh about 1.7× more (110/65), so always predicting Nonfiction no longer pays off. |
+| Try `C` = 1, 10, 100, 1000 | `C` sets how strongly the weights are held back (small C = strong regularization). With ~4,000 words and only ~140 training books per fold, each word's weight needs room to grow. |
+
+- **Stop words:** removing them helps Naive Bayes (0.731 → 0.822 macro F1) but hurts Logistic Regression (0.827 → 0.802). The pronouns from the exploration (*her, she, we, our*) are on the stop-word list.
+- **`C`:** macro F1 0.827 / 0.838 / 0.857 / 0.849 for C = 1 / 10 / 100 / 1000. The differences (at most 0.03) are smaller than the fold-to-fold standard deviation (about 0.05), so C = 10, 100 and 1000 can't be clearly separated. Picking the best C on the same folds it is scored on makes that score slightly optimistic.
+- **Nested cross-validation** fixes this: `GridSearchCV` (inner stratified 5-fold, `random_state=0`, scoring macro F1, C in 1/10/100/1000) chooses C using only each outer training fold, and `evaluate()` scores it on the outer test fold. Result: 0.869 ± 0.046 accuracy, 0.849 ± 0.058 macro F1, slightly below the hand-picked best (0.857), so the optimism was small (about 0.01). The outer folds chose C = 100 or 1000, never 1 or 10. **This nested score is the official number for TF-IDF + Logistic Regression.**
+
+> **For the report:** the collapse of the default models is worth a short paragraph. It shows why accuracy alone hides problems (0.629 looks "OK" but means the model learned nothing), and that model settings matter as much as the features. Mention nested CV in one or two sentences as the reason the reported score is honest.
+- **Title features:** three simple features reach 0.823 accuracy / 0.818 macro F1, far above the baseline. The cross-validated colon-only score (0.811) confirms the 81% of the one-rule classifier from the exploration.
+- **The title features overlap:** leaving out any single feature costs at most 0.015 macro F1. Even without `has_colon` the model reaches 0.803, because `title_words` carries much of the same information (titles with a subtitle are long).
+- Coefficients of the model fitted on all data (scaled features; positive = Nonfiction): `title_words` +1.83, `has_colon` +1.17, `has_series` −0.66. The directions match the exploration.
 
 - The baseline shows why accuracy alone is misleading: 63% accuracy without learning anything, but a macro F1 of only 0.386, because its F1 for Fiction is 0 (it never predicts Fiction). The ± 0.000 is because stratification gives every fold the same class ratio.
 
@@ -269,4 +336,35 @@ Every feature set and model is scored with the same function: **stratified 5-fol
 
 ## 5. Evaluation
 
-*Status: not started*
+*Status: in progress (2026-10-23).*
+
+Evaluated model: the final model (TF-IDF + title features, Logistic Regression). `cross_val_predict` with the same 5 folds gives every book one prediction from a model that never saw it during training.
+
+### Per-class scores and confusion matrix
+
+| Class | Precision | Recall | F1 | Books |
+|---|---|---|---|---|
+| Fiction | 0.768 | 0.969 | 0.857 | 65 |
+| Nonfiction | 0.978 | 0.827 | 0.897 | 110 |
+| Macro average | 0.873 | 0.898 | 0.877 | 175 |
+
+| | Predicted Fiction | Predicted Nonfiction |
+|---|---|---|
+| **Actual Fiction** | 63 | 2 |
+| **Actual Nonfiction** | 19 | 91 |
+
+- 154 of 175 books are classified correctly (0.880), 21 are wrong.
+- **The errors are lopsided:** only 2 of 65 Fiction books are missed, but 19 of 110 Nonfiction books are called Fiction. This is the price of `class_weight="balanced"`, which pushes the model to catch Fiction. Without it the model collapsed to always predicting Nonfiction (section 4).
+- Saved as `report/figures/confusion_matrix.png` (report image 2).
+
+### Error analysis
+
+The 21 misclassified books (from `wrong` in `03_features_models.ipynb`):
+
+- **Most errors are memoirs and narrative nonfiction without a subtitle:** *Eat, Pray, Love*, *Into the Wild*, *Girl, Interrupted*, *H is for Hawk*, *In Cold Blood*, *Reasons to Stay Alive*, *Why Not Me?*, *Mother, Can You Not?*, *My Mother Was Nuts*. Their descriptions tell a personal story about people (*she/her/his*), which is exactly the Fiction signal the model learned, and their short titles without a colon look like Fiction titles too.
+- ***Hystopia: A Novel*** (Fiction → Nonfiction): the only Fiction title with a colon, which is the strongest Nonfiction signal in the title features.
+- ***Night (The Night Trilogy #1)*** and ***The Suffragettes (Little Black Classics, #96)*** (Nonfiction → Fiction): nonfiction titles with a series marker.
+- ***Kindle Paperwhite User's Guide*** (Nonfiction → Fiction): its description is only its own title (4 words), so there is almost nothing to go on.
+- ***The Regional Office Is Under Attack!*** (Fiction → Nonfiction): one of the two missed Fiction books.
+
+> **For the report:** the errors aren't random. They sit on the fuzzy boundary between the classes: narrative nonfiction is written like a story, so both the words and the short titles look like Fiction. This is the "fuzzy boundary" discussion point from PLAN.md, now backed by concrete titles. Quote one or two descriptions to show it.
